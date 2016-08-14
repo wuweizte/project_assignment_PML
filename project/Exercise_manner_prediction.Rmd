@@ -1,0 +1,151 @@
+---
+title: "Prediction Of exercise manner"
+author: "Wu Wei"
+output: html_document
+---
+## Library input & Data Input
+```{r}
+library(parallel, warn.conflicts = FALSE, quietly = TRUE)
+library(doParallel, warn.conflicts = FALSE, quietly = TRUE)
+library(ggplot2, warn.conflicts = FALSE, quietly = TRUE)
+library(randomForest, warn.conflicts = FALSE, quietly = TRUE,verbose = FALSE)
+library(survival, warn.conflicts = FALSE, quietly = TRUE)
+library(splines, warn.conflicts = FALSE, quietly = TRUE)
+library(plyr, warn.conflicts = FALSE, quietly = TRUE)
+library(gbm, warn.conflicts = FALSE, quietly = TRUE)
+library(caret, warn.conflicts = FALSE, quietly = TRUE)
+
+original.data <- read.csv("pml-training.csv")
+
+```
+
+## Exploratory Data Analysis
+```{r}
+dim(original.data)
+
+set.seed(88)
+col.index <- sample(names(original.data), 20)
+summary(original.data[col.index])
+
+```
+It seems that some columns have NA value and space value.
+
+## Data Cleaning
+In the 20 test cases, some columns also have NA value and space value and can not be used in the prediction, which should be excluded from the training set and not occur in the prediction algorithm. In addition, other columns without help for the prediction should also be excluded.
+
+```{r}
+##columns with NA value are excluded
+sample.index <- createDataPartition(y = original.data$classe, p = 0.001, list = FALSE)
+sample.set <- original.data[sample.index,]
+
+result <- sapply(as.data.frame(sapply(sample.set, is.na)), sum)
+col.name.without.na <- names(result[result == 0])
+
+##columns with space value are excluded
+sample.set <- original.data[sample.index, col.name.without.na]
+result <- sapply(as.data.frame(sapply(sample.set, as.character) == ""), sum)
+col.name.without.space.na <- names(result[result == 0])
+
+##columns without help for the prediction are excluded
+final.col.name <- col.name.without.space.na[-c(1:7)]
+final.col.name
+```
+
+## Data Slicing
+```{r}
+set.seed(88)
+inTrain <- createDataPartition(y = original.data$classe, p = 0.75, list = FALSE)
+training.set <- original.data[inTrain, final.col.name]
+testing.set <- original.data[-inTrain, final.col.name]
+
+```
+
+## Build Model & Use Cross Validation
+This project is related to classification. First, random forest approach is used. 10-fold cross-validation is used in train function to select optimal parameter.
+```{r, cache=TRUE}
+
+cluster <- makeCluster(detectCores() - 1)
+registerDoParallel(cluster)
+
+traincontrol.rf <- trainControl(method = "cv", 
+                                number = 10,
+                                allowParallel = TRUE)
+
+set.seed(88)
+mod.rf <- train(classe ~ ., data = training.set, method = "rf",
+                            trControl = traincontrol.rf,
+                            ntree = 10)
+
+ggplot(mod.rf)
+```
+
+The accuracy of random forest method has reached 98.6%.
+
+Second, boosted tree model is used for comparison. 10-fold cross-validation is used to select optimal parameter.
+```{r, cache=TRUE}
+
+traincontrol.gbm <- trainControl(method = "cv", 
+                                number = 10,
+                                allowParallel = TRUE)
+
+gbmGrid <-  expand.grid(interaction.depth = c(1, 5, 9),
+                        n.trees = (1:3)*10,
+                        shrinkage = 0.1,
+                        n.minobsinnode = 20)
+
+set.seed(88)
+mod.gbm <- train(classe ~ ., data = training.set,
+                 method = "gbm",
+                 trControl = traincontrol.gbm,
+                 verbose = FALSE,
+                 tuneGrid = gbmGrid)
+
+ggplot(mod.gbm)
+```
+
+The accuracy of boosted tree model has reached 95%.
+
+## Out Of Sample Error
+The above 2 models are used in the test set to calculate out of sample error.
+
+```{r}
+result.rf <- table(predict(mod.rf, testing.set), testing.set$classe)
+diagonal.index <- array(c(1:5, 1:5), dim = c(5, 2))
+sum(result.rf[diagonal.index]) / nrow(testing.set)
+```
+Out of sample error of random forest model is 99.1%.
+
+```{r}
+result.gbm <- table(predict(mod.gbm, testing.set), testing.set$classe)
+sum(result.gbm[diagonal.index]) / nrow(testing.set)
+```
+Out of sample error of boosted tree model is 95.3%.
+
+## Choice of 2 models
+According to out of sample error, random forest model is chosen for next prediction.
+
+## Refine model
+Before next prediction, training data and testing data are all used to refine the random forest model.
+
+```{r, cache=TRUE}
+all.data.set <- original.data[, final.col.name]
+set.seed(88)
+final.mod.rf <- train(classe ~ ., data = all.data.set, method = "rf",
+                            trControl = traincontrol.rf,
+                            ntree = 10)
+
+###De-register parallel processing cluster
+stopCluster(cluster)
+
+ggplot(final.mod.rf)
+```
+
+## Predict 20 test cases
+```{r}
+data.for.prediction <- read.csv("pml-testing.csv")
+col.name.for.prediction <- intersect(final.col.name, names(data.for.prediction))
+
+result.of.prediction <- predict(final.mod.rf, data.for.prediction[, col.name.for.prediction])
+result.of.prediction
+
+```
