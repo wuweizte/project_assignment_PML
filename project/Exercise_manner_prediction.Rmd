@@ -6,17 +6,16 @@ output: html_document
 ## Library input & Data Input
 ```{r}
 library(parallel, warn.conflicts = FALSE, quietly = TRUE)
-library(doParallel, warn.conflicts = FALSE, quietly = TRUE)
+suppressMessages(library(doParallel, warn.conflicts = FALSE, quietly = TRUE))
 library(ggplot2, warn.conflicts = FALSE, quietly = TRUE)
-library(randomForest, warn.conflicts = FALSE, quietly = TRUE,verbose = FALSE)
+suppressMessages(library(randomForest, warn.conflicts = FALSE, quietly = TRUE, verbose = FALSE))
 library(survival, warn.conflicts = FALSE, quietly = TRUE)
 library(splines, warn.conflicts = FALSE, quietly = TRUE)
 library(plyr, warn.conflicts = FALSE, quietly = TRUE)
-library(gbm, warn.conflicts = FALSE, quietly = TRUE)
+suppressMessages(library(gbm, warn.conflicts = FALSE, quietly = TRUE, verbose = FALSE))
 library(caret, warn.conflicts = FALSE, quietly = TRUE)
 
 original.data <- read.csv("pml-training.csv")
-
 ```
 
 ## Exploratory Data Analysis
@@ -111,15 +110,15 @@ The above 2 models are used in the test set to calculate out of sample error.
 ```{r}
 result.rf <- table(predict(mod.rf, testing.set), testing.set$classe)
 diagonal.index <- array(c(1:5, 1:5), dim = c(5, 2))
-sum(result.rf[diagonal.index]) / nrow(testing.set)
+1 - sum(result.rf[diagonal.index]) / nrow(testing.set)
 ```
-Out of sample error of random forest model is 99.1%.
+Out of sample error of random forest model is 0.9%.
 
 ```{r}
 result.gbm <- table(predict(mod.gbm, testing.set), testing.set$classe)
-sum(result.gbm[diagonal.index]) / nrow(testing.set)
+1 - sum(result.gbm[diagonal.index]) / nrow(testing.set)
 ```
-Out of sample error of boosted tree model is 95.3%.
+Out of sample error of boosted tree model is 4.7%.
 
 ## Choice of 2 models
 According to out of sample error, random forest model is chosen for next prediction.

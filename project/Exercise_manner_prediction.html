@@ -124,17 +124,14 @@ $(document).ready(function () {
 <div id="library-input-data-input" class="section level2">
 <h2>Library input &amp; Data Input</h2>
 <pre class="r"><code>library(parallel, warn.conflicts = FALSE, quietly = TRUE)
-library(doParallel, warn.conflicts = FALSE, quietly = TRUE)
+suppressMessages(library(doParallel, warn.conflicts = FALSE, quietly = TRUE))
 library(ggplot2, warn.conflicts = FALSE, quietly = TRUE)
-library(randomForest, warn.conflicts = FALSE, quietly = TRUE,verbose = FALSE)</code></pre>
-<pre><code>## randomForest 4.6-12</code></pre>
-<pre><code>## Type rfNews() to see new features/changes/bug fixes.</code></pre>
-<pre class="r"><code>library(survival, warn.conflicts = FALSE, quietly = TRUE)
+suppressMessages(library(randomForest, warn.conflicts = FALSE, quietly = TRUE, verbose = FALSE))
+library(survival, warn.conflicts = FALSE, quietly = TRUE)
 library(splines, warn.conflicts = FALSE, quietly = TRUE)
 library(plyr, warn.conflicts = FALSE, quietly = TRUE)
-library(gbm, warn.conflicts = FALSE, quietly = TRUE)</code></pre>
-<pre><code>## Loaded gbm 2.1.1</code></pre>
-<pre class="r"><code>library(caret, warn.conflicts = FALSE, quietly = TRUE)
+suppressMessages(library(gbm, warn.conflicts = FALSE, quietly = TRUE, verbose = FALSE))
+library(caret, warn.conflicts = FALSE, quietly = TRUE)
 
 original.data &lt;- read.csv(&quot;pml-training.csv&quot;)</code></pre>
 </div>
@@ -284,13 +281,13 @@ mod.gbm &lt;- train(classe ~ ., data = training.set,
 <p>The above 2 models are used in the test set to calculate out of sample error.</p>
 <pre class="r"><code>result.rf &lt;- table(predict(mod.rf, testing.set), testing.set$classe)
 diagonal.index &lt;- array(c(1:5, 1:5), dim = c(5, 2))
-sum(result.rf[diagonal.index]) / nrow(testing.set)</code></pre>
-<pre><code>## [1] 0.9906199</code></pre>
-<p>Out of sample error of random forest model is 99.1%.</p>
+1 - sum(result.rf[diagonal.index]) / nrow(testing.set)</code></pre>
+<pre><code>## [1] 0.008972268</code></pre>
+<p>Out of sample error of random forest model is 0.9%.</p>
 <pre class="r"><code>result.gbm &lt;- table(predict(mod.gbm, testing.set), testing.set$classe)
-sum(result.gbm[diagonal.index]) / nrow(testing.set)</code></pre>
-<pre><code>## [1] 0.9533034</code></pre>
-<p>Out of sample error of boosted tree model is 95.3%.</p>
+1 - sum(result.gbm[diagonal.index]) / nrow(testing.set)</code></pre>
+<pre><code>## [1] 0.04669657</code></pre>
+<p>Out of sample error of boosted tree model is 4.7%.</p>
 </div>
 <div id="choice-of-2-models" class="section level2">
 <h2>Choice of 2 models</h2>
